@@ -1,0 +1,140 @@
+#!/usr/bin/python
+
+import argparse
+import hashlib
+import sys
+import subprocess
+import os
+
+def runCmd(cmd):
+    print(cmd)
+    proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = proc.communicate()
+    if len(err) != 0:
+        print('ERROR: '+err.strip())
+    return proc.returncode
+
+def getmd5sum(f):
+    m = hashlib.md5()
+    m.update(open(f, 'rb').read())
+    return m.hexdigest()
+
+def createList(localrecord, remoterecord):
+    remotemd5 = {line.strip().split()[1]: line.strip().split()[0] for line in open(remoterecord)}
+    if os.path.isfile(localrecord) and os.path.exists(localrecord):
+        localmd5 = {line.strip().split()[1]: line.strip().split()[0] for line in open(localrecord)}
+    else:
+        localmd5 = {f: '' for f in remotemd5}
+
+    processList = []
+    for f in remotemd5:
+        if localmd5[f] != remotemd5[f]:
+            processList.append((f, remotemd5[f], localmd5[f]))
+    
+    return processList
+
+def download(url, work, filename, md5=None, silent=False, localSource=False):
+    source = '%s/%s' % (url, filename)
+    target = os.path.join(work, '.downloads', filename)
+    if os.path.exists(target):
+        runCmd('rm -f %s' % target)
+
+    cmd = 'wget --no-check-certificate %s -O %s' % (source, target)
+    if silent:
+        cmd = cmd + ' -q'
+    if local:
+        cmd = 'cp %s %s' % (source, target)
+
+    print('Downloading file %s...' % (source))
+    rcode = runCmd(cmd)
+    if rcode != 0:
+        print('Download failed.')
+        return False
+    print('Download completed')
+
+    if md5 is not None:
+        if getmd5sum(target) != md5:
+            print('MD5 checksum mismatch')
+            return False
+    return True
+
+def install(work, item, doBackup=True):
+    module = item[0].replace('.tar.bz2', '')
+    source = os.path.join(work, '.downloads', item[0])
+    target = os.path.join(work, module)
+    backup = os.path.join(work, '%s_%s' % (module, item[2][:6]))
+
+    # backup if necessary
+    if item[2] != '' and os.path.exists(target):
+        cmd = 'rm -rf ' + target
+        if doBackup:
+            cmd = 'mv %s %s' % (target, backup)
+
+        if runCmd(cmd) != 0:
+            return False
+    
+    # unzip the downloaded file
+    cmd = 'tar -xjf %s -C %s' % (source, work)
+    if runCmd(cmd) != 0:
+        return False
+    
+    print('Installation completed')
+    return True
+    
+def main(args):
+    #Step 0: some sanity checks
+    if not os.path.exists(os.path.join(args.work, '.downloads')): ## clean installation
+        cmd = 'mkdir -p %s' % (os.path.join(args.work, '.downloads'))
+        if runCmd(cmd) != 0:
+            print('Workspace not ready, check priviledges')
+        return
+
+    #Step 1: downalid the remote md5 file and check connection
+    remoterecord = 'e1039sw_latest.md5'
+    if not download_local(args.url, args.work, remoterecord, localSource=args.local):
+        print('Cannot comminucate with downloading server %s' % args.url)
+        return
+
+    #Step 2: create the process list by comparing local and remote md5 files
+    localrecord = os.path.join(args.work, '.downloads', 'e1039sw.md5')
+    remoterecord = os.path.join(args.work, '.downloads', remoterecord)
+    processList = createList(localrecord, remoterecord)
+    if len(processList) == 0:
+        print('Everything is still up-to-date, no update available')
+        runCmd('rm -f '+remoterecord)
+        return
+    print('%s will be downloaded and installed')
+
+    #Repeat step 3 and 4 to each item
+    for item in processList:
+        print('Updating %s' % item[0])
+        if not download_local(args.url, args.work, item[0], md5=item[1], localSource=args.local):
+            print('Failed to download')
+            return
+
+        print('Installing %s' % item[0])
+        if not install(args.work, item, not args.overwrite):
+            print('Failed to install')
+            return
+
+    #Step 5: rename the md5 record file, clean up if necessary
+    cmd = 'mv %s %s' % (remoterecord, localrecord)
+    runCmd(cmd)
+    if args.clear:
+        print('Removing the downloaded tarballs')
+        cmd = 'rm -rf %s/*.bz2' % (os.path.join(args.work, '.downloads'))
+        runCmd(cmd)
+
+    print('Successfully completed')
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Configuration tool to initialize or update the SpinQuest software suite')
+    parser.add_argument('--url', help='The url to the download site', dest='url', default='https://spinquest.fnal.gov')
+    parser.add_argument('--work', help='Work directory for this script, default to /opt/e1039/', dest='work', default='/opt/e1039')
+    parser.add_argument('--verbose', help='Enable verbose debugging output', action='store_true')
+    parser.add_argument('--clear', help='Clear the downloaded zip file after installation', action='store_true')
+    parser.add_argument('--local', help='Direct the script to download tarballs from a local path instead', action='store_true')
+    parser.add_argument('--overwrite', help='Overwrite the previous installation, the previous installation will be kept by default', action='store_true')
+
+    args = parser.parse_args()
+    main(args)
