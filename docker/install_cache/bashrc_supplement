@@ -1,0 +1,17 @@
+
+## The following section checks if an installation exists, 
+## if not, it will try to extract the tarballs located at 
+## /var/install_cache using script /usr/local/bin/sqsetup
+
+if [ -d /var/e1039_install_cache ] && [ ! -f /var/e1039_install_cache/SUCCESS ]; then
+    echo "First time running the dockerized E1039 software, need to initialize the environment."
+    echo "This may take a while ..."
+
+    sqsetup --url=/var/e1039_install_cache --work=/opt/e1039 --clear --local
+    if [ $? -ne 0 ]; then
+        echo "Initialization failed. Please copy all error messages to software team."
+    else
+        echo "Initialization successful."
+        date > /var/e1039_install_cache/SUCCESS
+    fi
+fi

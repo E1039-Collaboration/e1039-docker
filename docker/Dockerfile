@@ -7,14 +7,18 @@ RUN yum -y update && \
            libXpm-devel libXft-devel libXext-devel fftw-devel gsl-devel libxml2-devel \
            openssl-devel libXmu-devel xerces-c-devel mesa-libGL-devel mesa-libGLU-devel && \
     yum -y clean all && \
-    echo "exclude=*" >> /etc/yum.conf
-RUN useradd -d /home/e1039 -G wheel -m -U -p $(openssl passwd -1 spinquest) e1039 && \
-    mkdir -p /opt/e1039 && chown -R e1039:e1039 /opt/e1039
-ADD --chown=e1039:e1039 resource.tar.bz2 /opt/e1039
+    useradd -d /home/e1039 -G wheel -m -U -p $(openssl passwd -1 spinquest) e1039 && \
+    mkdir -p /opt/e1039/.downloads && chown -R e1039:e1039 /opt/e1039 && \
+    mkdir -p /var/e1039_install_cache && chown -R e1039:e1039 /var/e1039_install_cache
+COPY yum.conf /etc/yum.conf
+COPY sqsetup /usr/local/bin
+COPY install_cache/*  /var/e1039_install_cache/
 
-COPY sqconfig /usr/local/bin
-#COPY this-e1039.sh /opt/e1039
-
+# below should be done as normal user
 USER e1039
 WORKDIR /home/e1039
+
+COPY --chown=e1039:e1039 this-e1039.sh      /opt/e1039
+RUN cat /var/e1039_install_cache/bashrc_supplement >> /home/e1039/.bashrc
+
 CMD ["/bin/bash"]

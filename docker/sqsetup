@@ -7,7 +7,8 @@ import subprocess
 import os
 
 def runCmd(cmd):
-    print(cmd)
+    if args.verbose:
+        print(cmd)
     proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = proc.communicate()
     if len(err) != 0:
@@ -33,7 +34,7 @@ def createList(localrecord, remoterecord):
     
     return processList
 
-def download(url, work, filename, md5=None, silent=False, localSource=False):
+def download(url, work, filename, md5=None, silent=False):
     source = '%s/%s' % (url, filename)
     target = os.path.join(work, '.downloads', filename)
     if os.path.exists(target):
@@ -42,7 +43,7 @@ def download(url, work, filename, md5=None, silent=False, localSource=False):
     cmd = 'wget --no-check-certificate %s -O %s' % (source, target)
     if silent:
         cmd = cmd + ' -q'
-    if local:
+    if args.local:
         cmd = 'cp %s %s' % (source, target)
 
     print('Downloading file %s...' % (source))
@@ -58,7 +59,7 @@ def download(url, work, filename, md5=None, silent=False, localSource=False):
             return False
     return True
 
-def install(work, item, doBackup=True):
+def install(work, item):
     module = item[0].replace('.tar.bz2', '')
     source = os.path.join(work, '.downloads', item[0])
     target = os.path.join(work, module)
@@ -67,7 +68,7 @@ def install(work, item, doBackup=True):
     # backup if necessary
     if item[2] != '' and os.path.exists(target):
         cmd = 'rm -rf ' + target
-        if doBackup:
+        if not args.overwrite:
             cmd = 'mv %s %s' % (target, backup)
 
         if runCmd(cmd) != 0:
@@ -81,19 +82,19 @@ def install(work, item, doBackup=True):
     print('Installation completed')
     return True
     
-def main(args):
+def main():
     #Step 0: some sanity checks
     if not os.path.exists(os.path.join(args.work, '.downloads')): ## clean installation
         cmd = 'mkdir -p %s' % (os.path.join(args.work, '.downloads'))
         if runCmd(cmd) != 0:
             print('Workspace not ready, check priviledges')
-        return
+        sys.exit(1)
 
     #Step 1: downalid the remote md5 file and check connection
     remoterecord = 'e1039sw_latest.md5'
-    if not download_local(args.url, args.work, remoterecord, localSource=args.local):
+    if not download(args.url, args.work, remoterecord):
         print('Cannot comminucate with downloading server %s' % args.url)
-        return
+        sys.exit(1)
 
     #Step 2: create the process list by comparing local and remote md5 files
     localrecord = os.path.join(args.work, '.downloads', 'e1039sw.md5')
@@ -102,20 +103,20 @@ def main(args):
     if len(processList) == 0:
         print('Everything is still up-to-date, no update available')
         runCmd('rm -f '+remoterecord)
-        return
-    print('%s will be downloaded and installed')
+        sys.exit(0)
+    print('%s will be downloaded and installed' % str([item[0] for item in processList]).replace('[', '').replace(']', ''))
 
     #Repeat step 3 and 4 to each item
     for item in processList:
         print('Updating %s' % item[0])
-        if not download_local(args.url, args.work, item[0], md5=item[1], localSource=args.local):
+        if not download(args.url, args.work, item[0], md5=item[1]):
             print('Failed to download')
-            return
+            sys.exit(1)
 
         print('Installing %s' % item[0])
-        if not install(args.work, item, not args.overwrite):
+        if not install(args.work, item):
             print('Failed to install')
-            return
+            sys.exit(1)
 
     #Step 5: rename the md5 record file, clean up if necessary
     cmd = 'mv %s %s' % (remoterecord, localrecord)
@@ -136,5 +137,6 @@ if __name__ == '__main__':
     parser.add_argument('--local', help='Direct the script to download tarballs from a local path instead', action='store_true')
     parser.add_argument('--overwrite', help='Overwrite the previous installation, the previous installation will be kept by default', action='store_true')
 
+    global args
     args = parser.parse_args()
-    main(args)
+    main()
