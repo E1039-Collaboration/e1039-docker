@@ -12,7 +12,11 @@ RUN yum -y update && \
     mkdir -p /var/e1039_install_cache && chown -R e1039:e1039 /var/e1039_install_cache
 COPY yum.conf /etc/yum.conf
 COPY sqsetup /usr/local/bin
-COPY install_cache/*  /var/e1039_install_cache/
+COPY tarballs/share.tar.bz2      /var/e1039_install_cache/
+COPY tarballs/resource.tar.bz2   /var/e1039_install_cache/
+COPY tarballs/core.tar.bz2       /var/e1039_install_cache/
+COPY install_cache/*             /var/e1039_install_cache/
+
 
 # below should be done as normal user
 USER e1039
