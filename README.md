@@ -36,12 +36,19 @@ e1039@docker ~: cd e1039-analysis/SimChainDev
 e1039@docker ~: root -l -b -q Fun4Sim.C\(100\)
 ```
 
-Once the work is done, one can simply leave the docker container by `exit` in the terminal (just like in a ssh session). The container will be stopped and all the resources (other than disk space) will be released. The files generated inside the container is still persisted under the docker's storage management.
+Once the work is done, one can simply leave the docker container by `exit` in the terminal (just like in a ssh session). The container will be stopped and all the resources (other than disk space) will be released. The files generated inside the container is still persisted under the docker's storage management. It's similar to shutting off a virtual machine.
 
 ## Reconnect to a stopped container
 
+To re-connect to a stopped container (like restart a stopped virtual machine), one needs to first obtain the container id by `docker ps -a` which will list the status of all the containers. The container id is the 12-character long hash code in the first column. To re-attach to a running container, run: `docker container attach <container id>`. If the container is already stopped (as shown in the STATUS column), it needs to be started first: `docker container start <container id>`.
 
+## Some useful tips using docker
 
+- Display GUI like ROOT plots: `docker run -it -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix e1039/e1039-sw:pr78`
+- Run multiple terminals with a single container: 1. start a container in deattached mode: `docker run -it -d ...`; 2. obtain the container id by `docker ps -a`; 3. start a separate bash terminal of that container: `docker exec -it <container id> bash`
 
+## Other useful docker documentations
+
+Visit <https://docs.docker.com/> for more complete docker documentation
 
 
