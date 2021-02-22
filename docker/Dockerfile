@@ -2,7 +2,7 @@ FROM fermilab/fnal-wn-sl7
 
 RUN yum -y update && \
     yum -y install epel-release && \
-    yum -y install screen wget patch libtool git-all gcc gcc-c++ gcc-gfortran \
+    yum -y install wget patch libtool git-all gcc gcc-c++ gcc-gfortran \
            boost-devel python-devel cmake doxygen mariadb-devel sqlite-devel ncurses-devel \
            zlib-devel bzip2-devel freetype-devel pcre-devel xz-devel lz4-devel libX11-devel \
            libXpm-devel libXft-devel libXext-devel fftw-devel gsl-devel libxml2-devel \
