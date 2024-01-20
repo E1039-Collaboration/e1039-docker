@@ -49,6 +49,6 @@ To re-connect to a stopped container (like restart a stopped virtual machine), o
 
 ## Other useful docker documentations
 
-Visit <https://docs.docker.com/> for more complete docker documentation
+Visit <https://docs.docker.com/> for more complete docker documentation.
 
 
